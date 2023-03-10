@@ -1,0 +1,11 @@
+{
+  "version": 2,
+  "dgSpecHash": "jLyzbWm6niWS1QSC/377aJiPPFbksXFwSwmEnG3CeLPdSmWc1DObJrsiivZsPG/vmgpY/mmJYmmXxZZUOMA6fQ==",
+  "success": true,
+  "projectFilePath": "/Users/abellelus7074/Projects/Twitch_Parser/Twitch_Parser/Twitch_Parser.csproj",
+  "expectedPackageFiles": [
+    "/Users/abellelus7074/.nuget/packages/htmlagilitypack/1.11.46/htmlagilitypack.1.11.46.nupkg.sha512",
+    "/Users/abellelus7074/.nuget/packages/newtonsoft.json/13.0.3/newtonsoft.json.13.0.3.nupkg.sha512"
+  ],
+  "logs": []
+}
