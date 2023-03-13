@@ -33,6 +33,38 @@ namespace Twitch_Parser {
 
         }
 
+
+        /// <summary> 방송중인지 아닌지 확인하는 용도 </summary>
+        public object get_broadcast_streaming(List<string> _user_logins) {
+            string url = "https://api.twitch.tv/helix/streams";
+            if (_user_logins.Count != 0) {
+                url = "https://api.twitch.tv/helix/streams?user_login=";
+                url += string.Join("&user_login=", _user_logins);
+            }
+            // Connection
+            var _connection_res = this._get_get_data(url, this._get_auth_header());
+            if (this._get_result_type(_connection_res) != "OK") { return _connection_res; }
+
+            // JObjec Checker
+            JObject _jobject_value = (JObject)this._get_result_value(_connection_res);
+            if (!_jobject_value.ContainsKey("data")) {
+                return this._get_result_message("ERR", "NO_DATA", "NO_DATA");
+            }
+
+            JArray _datas = _jobject_value.Value<JArray>("data");
+            if (_datas.Count == 0) {
+                return this._get_result_message("ERR", "NO_DATA", "NO_DATA");
+            }
+
+            return this._get_result_message("OK", (JArray)_datas);
+        }
+
+        /// <summary> 채널 정보 확인하는 용 </summary>
+        public object get_broadcast_information(string broadcaster_id) {
+            return null;
+        }
+
+
         /// <summary> 토큰 가져오기 </summary>
         private object _get_new_token(string _client_id, string _client_secret) {
             // 기초 셋팅 
@@ -64,32 +96,9 @@ namespace Twitch_Parser {
             return this._get_result_message("OK", "CONFIRM");
         }
 
-        /// <summary> 방송중인지 아닌지 확인하는 용도 </summary>
-        public object get_broadcast_streaming(List<string> _user_logins, bool test = false) {
-
-            string url = "https://api.twitch.tv/helix/streams?user_login=";
-            url += string.Join("&user_login=", _user_logins);
-            if (test) {
-                url = "https://api.twitch.tv/helix/streams";
-            }
-            // Connection
-            var _connection_res = this._get_get_data(url, this._get_auth_header());
-            if (this._get_result_type(_connection_res) != "OK") { return _connection_res; }
-
-            // JObjec Checker
-            JObject _jobject_value = (JObject)this._get_result_value(_connection_res);
-            if (!_jobject_value.ContainsKey("data")) {
-                return this._get_result_message("ERR", "NO_DATA", "NO_DATA");
-            }
-
-            JArray _datas = _jobject_value.Value<JArray>("data");
-            if (_datas.Count == 0) {
-                return this._get_result_message("ERR", "NO_DATA", "NO_DATA");
-            }
-
-            return this._get_result_message("OK", (JArray)_datas);
+        public object get_broadcast_streaming() {
+            return this.get_broadcast_streaming(new List<string>() { });
         }
-
 
         /// <summary> auth 전송을 위한 데이터 반환 </summary>
         private Dictionary<string, string> _get_auth_header() {

@@ -1,1 +1,1 @@
-﻿Console.Write("Program.cs 에 코드 짜면 됨");
+﻿//읗 엫 읗 
