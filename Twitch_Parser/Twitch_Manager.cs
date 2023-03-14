@@ -23,8 +23,7 @@ namespace Twitch_Parser {
         public Twitch_Manager(string _client_id, string _client_secret) {
             var _token_result = this._get_new_token(_client_id, _client_secret);
             if (this._get_result_type(_token_result) != "OK") {
-                Console.WriteLine(_token_result);
-                return;
+                throw new Exception((string)this._get_result_value(_token_result));
             }
             this._client_id = _client_id;
             this._client_secret = _client_secret;
@@ -45,7 +44,7 @@ namespace Twitch_Parser {
             var _connection_res = this._get_get_data(url, this._get_auth_header());
             if (this._get_result_type(_connection_res) != "OK") { return _connection_res; }
 
-            // JObjec Checker
+            // JObject Checker
             JObject _jobject_value = (JObject)this._get_result_value(_connection_res);
             if (!_jobject_value.ContainsKey("data")) {
                 return this._get_result_message("ERR", "NO_DATA", "NO_DATA");
@@ -59,9 +58,32 @@ namespace Twitch_Parser {
             return this._get_result_message("OK", (JArray)_datas);
         }
 
-        /// <summary> 채널 정보 확인하는 용 </summary>
+        /// <summary> 채널 정보 확인하는 용도 </summary>
         public object get_broadcast_information(string broadcaster_id) {
-            return null;
+
+            // Connection
+            string _url = "https://api.twitch.tv/helix/search/channels?query=" +broadcaster_id;
+            var _connection_res = this._get_get_data(_url, this._get_auth_header());
+            if (this._get_result_type(_connection_res) != "OK") { return _connection_res; }
+
+            // JObject Checker
+            JObject _jobject_value = (JObject)this._get_result_value(_connection_res);
+            if (!_jobject_value.ContainsKey("data")) {
+                return this._get_result_message("ERR", "NO_DATA", "NO_DATA");
+            }
+
+            JArray _datas = _jobject_value.Value<JArray>("data");
+            if (_datas.Count == 0) {
+                return this._get_result_message("ERR", "NO_DATA", "NO_DATA");
+            }
+
+            foreach (var i in (JArray)_datas) {
+                if (i.Value<string>("broadcaster_login") == broadcaster_id) {
+                    return this._get_result_message("OK", (JObject)i);
+                }
+            }
+
+            return this._get_result_message("ERR", "NO DATA", "NO_DATA");
         }
 
 
