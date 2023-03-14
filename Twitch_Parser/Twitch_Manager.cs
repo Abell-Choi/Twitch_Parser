@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections;
 using System.IO;
 using System.Linq;
@@ -22,19 +22,19 @@ namespace Twitch_Parser {
 
         public Twitch_Manager(string _client_id, string _client_secret) {
             var _token_result = this._get_new_token(_client_id, _client_secret);
-            if (this._get_result_type(_token_result) != "OK") {
-                throw new Exception((string)this._get_result_value(_token_result));
+            if (_token_result["TYPE"] != "OK") {
+                throw new Exception((string)_token_result["VALUE"]);
             }
             this._client_id = _client_id;
             this._client_secret = _client_secret;
             this._client_token = "Bearer ";
-            this._client_token += ((JObject)this._get_result_value(_token_result)).Value<string>("access_token");
+            this._client_token += ((JObject)_token_result["VALUE"]).Value<string>("access_token");
 
         }
 
 
         /// <summary> 방송중인지 아닌지 확인하는 용도 </summary>
-        public object get_broadcast_streaming(List<string> _user_logins) {
+        public Dictionary<string, dynamic> get_broadcast_streaming(List<string> _user_logins) {
             string url = "https://api.twitch.tv/helix/streams";
             if (_user_logins.Count != 0) {
                 url = "https://api.twitch.tv/helix/streams?user_login=";
@@ -42,53 +42,53 @@ namespace Twitch_Parser {
             }
             // Connection
             var _connection_res = this._get_get_data(url, this._get_auth_header());
-            if (this._get_result_type(_connection_res) != "OK") { return _connection_res; }
+            if (_connection_res["TYPE"] != "OK") { return _connection_res; }
 
             // JObject Checker
-            JObject _jobject_value = (JObject)this._get_result_value(_connection_res);
+            JObject _jobject_value = (JObject)_connection_res["VALUE"];
             if (!_jobject_value.ContainsKey("data")) {
-                return this._get_result_message("ERR", "NO_DATA", "NO_DATA");
+                return this._get_result_map("ERR", "NO_DATA", "NO_DATA");
             }
 
-            JArray _datas = _jobject_value.Value<JArray>("data");
+            JArray _datas = _jobject_value.Value<JArray>("data")!;
             if (_datas.Count == 0) {
-                return this._get_result_message("ERR", "NO_DATA", "NO_DATA");
+                return this._get_result_map("ERR", "NO_DATA", "NO_DATA");
             }
 
-            return this._get_result_message("OK", (JArray)_datas);
+            return this._get_result_map("OK", (JArray)_datas);
         }
 
         /// <summary> 채널 정보 확인하는 용도 </summary>
-        public object get_broadcast_information(string broadcaster_id) {
+        public Dictionary<string, dynamic> get_broadcast_information(string broadcaster_id) {
 
             // Connection
-            string _url = "https://api.twitch.tv/helix/search/channels?query=" +broadcaster_id;
+            string _url = "https://api.twitch.tv/helix/search/channels?query=" + broadcaster_id;
             var _connection_res = this._get_get_data(_url, this._get_auth_header());
-            if (this._get_result_type(_connection_res) != "OK") { return _connection_res; }
+            if (_connection_res["TYPE"]!= "OK") { return _connection_res; }
 
             // JObject Checker
-            JObject _jobject_value = (JObject)this._get_result_value(_connection_res);
+            JObject _jobject_value = (JObject)_connection_res["VALUE"];
             if (!_jobject_value.ContainsKey("data")) {
-                return this._get_result_message("ERR", "NO_DATA", "NO_DATA");
+                return this._get_result_map("ERR", "NO_DATA", "NO_DATA");
             }
 
             JArray _datas = _jobject_value.Value<JArray>("data");
             if (_datas.Count == 0) {
-                return this._get_result_message("ERR", "NO_DATA", "NO_DATA");
+                return this._get_result_map("ERR", "NO_DATA", "NO_DATA");
             }
 
             foreach (var i in (JArray)_datas) {
                 if (i.Value<string>("broadcaster_login") == broadcaster_id) {
-                    return this._get_result_message("OK", (JObject)i);
+                    return this._get_result_map("OK", (JObject)i);
                 }
             }
 
-            return this._get_result_message("ERR", "NO DATA", "NO_DATA");
+            return this._get_result_map("ERR", "NO DATA", "NO_DATA");
         }
 
 
         /// <summary> 토큰 가져오기 </summary>
-        private object _get_new_token(string _client_id, string _client_secret) {
+        private Dictionary<string, dynamic> _get_new_token(string _client_id, string _client_secret) {
             // 기초 셋팅 
             string _url = "https://id.twitch.tv/oauth2/token";
             var _post_data = new Dictionary<string, dynamic>(){
@@ -99,26 +99,26 @@ namespace Twitch_Parser {
 
             // 데이터 전송 -> JObject
             var _post_request = this._get_post_data(_url, _post_data) ;
-            if (_get_result_type(_post_request) != "OK") { return _post_request; }
+            if (_post_request["TYPE"] != "OK") { return _post_request; }
 
-            return this._get_result_message("OK", (JObject)_get_result_value(_post_request));
+            return this._get_result_map("OK", (JObject)_post_request["VALUE"]);
 
         }
         
         /// <summary> request 변수에 Url 셋팅 </summary>
-        private object _set_request_data(string url, bool isPost = false) {
+        private Dictionary<string, dynamic> _set_request_data(string url, bool isPost = false) {
             try {
                 this._request = (HttpWebRequest)WebRequest.Create(url);
                 this._request.Method = isPost ? "POST" : "GET";
                 this._request.ContentType = "application/x-www-form-urlencoded";
                 this._request.CookieContainer = this._cookie;
             } catch (Exception e) {
-                return this._get_result_message("ERR", e.ToString(), "CONN_ERR");
+                return this._get_result_map("ERR", e.ToString(), "CONN_ERR");
             }
-            return this._get_result_message("OK", "CONFIRM");
+            return this._get_result_map("OK", "CONFIRM");
         }
 
-        public object get_broadcast_streaming() {
+        public Dictionary<string, object> get_broadcast_streaming() {
             return this.get_broadcast_streaming(new List<string>() { });
         }
 
@@ -143,18 +143,19 @@ namespace Twitch_Parser {
         }
 
         /// <summary> GET 전송 담당 -> Jobject로 반환 </summary>
-        private object _get_get_data(string _url, Dictionary<string ,string> _header) {
+        private Dictionary<string, dynamic> _get_get_data(string _url, Dictionary<string ,string> _header) {
 
             // 헤더 추가
             this._request.Headers.Clear();
-            object _set_res = this._set_request_data(_url, false);
+            var _set_res = this._set_request_data(_url, false);
             foreach (string i in _header.Keys.ToList<string>()) {
                 this._request.Headers.Add(i, _header[i]);
             }
+
             string h = string.Empty;
             foreach (string i in _request.Headers.Keys) {
             }
-            if (this._get_result_type(_set_res) != "OK"){ return _set_res; }
+            if (_set_res["TYPE"] != "OK"){ return _set_res; }
 
 
             // 연결 실패 예외처리 
@@ -162,10 +163,10 @@ namespace Twitch_Parser {
             try {
                 _response_data = (HttpWebResponse)this._request.GetResponse();
                 if (_response_data.StatusCode != HttpStatusCode.OK) {
-                    return this._get_result_message("ERR", (int)_response_data.StatusCode, "RESPONSE_ERR");
+                    return this._get_result_map("ERR", (int)_response_data.StatusCode, "RESPONSE_ERR");
                 }
             } catch (Exception e) {
-                return this._get_result_message("ERR", e.ToString(), "RESPONSE_ERR");
+                return this._get_result_map("ERR", e.ToString(), "RESPONSE_ERR");
             }
 
             StreamReader _stream = new StreamReader(_response_data.GetResponseStream());
@@ -173,17 +174,17 @@ namespace Twitch_Parser {
 
             // convert jobject
             var jobject_convert_res = this._get_converted_object_to_jobject(html);
-            if (_get_result_type(jobject_convert_res) != "OK") {
+            if (jobject_convert_res["TYPE"] != "OK") {
                 return jobject_convert_res;
             }
 
-            return this._get_result_message("OK", (JObject) _get_result_value(jobject_convert_res));
+            return this._get_result_map("OK", (JObject) jobject_convert_res["VALUE"]);
 
 
         }
 
         /// <summary> POST 전송 담당 -> jobject로 반환 </summary>
-        private object _get_post_data(string _url, Dictionary<string, dynamic> _data) {
+        private Dictionary<string, object> _get_post_data(string _url, Dictionary<string, object> _data) {
             _set_request_data(_url, true);
             byte[] post_byte_data = this.get_convert_post_data(_data);
             this._request.ContentLength = post_byte_data.Length;
@@ -195,35 +196,34 @@ namespace Twitch_Parser {
                 var _res = this._request.GetResponse();
                 _response = (HttpWebResponse)_res;
             } catch (Exception e) {
-                return this._get_result_message("ERR", e.ToString(), description:"RESPONSE_ERR");
+                return this._get_result_map("ERR", e.ToString(), description:"RESPONSE_ERR");
             }
             StreamReader _reader = new StreamReader( _response.GetResponseStream());
             string _res_data = _reader.ReadToEnd();
             var _json_convert = this._get_converted_object_to_jobject(_res_data);
-            if (this._get_result_type(_json_convert) != "OK") { return _json_convert; }
+            if (_json_convert["TYPE"] != "OK") { return _json_convert; };
 
 
-            return this._get_result_message("OK", (JObject) this._get_result_value(_json_convert));
+            return this._get_result_map("OK", (JObject) _json_convert["VALUE"]);
             
         }
 
 
         /// <summary> JSON_STRING to jobject </summary>
-        private object _get_converted_object_to_jobject(string json_string) {
-            try { return this._get_result_message("OK", JObject.Parse(json_string)); }
-            catch (Exception e) { return this._get_result_message("ERR", e.ToString(), "CONVERT ERR"); }
+        private Dictionary<string, object> _get_converted_object_to_jobject(string json_string) {
+            try { return this._get_result_map("OK", JObject.Parse(json_string)); }
+            catch (Exception e) { return this._get_result_map("ERR", e.ToString(), "CONVERT ERR"); }
         }
 
         /// <summary> dict -> jobject </summary>
-        private object _get_converted_object_to_jobject(Dictionary<string, dynamic> _dict) {
-            try { return this._get_result_message("OK", JObject.Parse(JsonConvert.SerializeObject(_dict))); }
-            catch(Exception e) { return this._get_result_message("ERR", e.ToString(), "CONVERT ERR"); }
+        private object _get_converted_object_to_jobject(Dictionary<string, object> _dict) {
+            try { return this._get_result_map("OK", JObject.Parse(JsonConvert.SerializeObject(_dict))); }
+            catch(Exception e) { return this._get_result_map("ERR", e.ToString(), "CONVERT ERR"); }
         }
 
-        private object _get_result_message(string type, object _value, string description="") { return new { TYPE = type, VALUE =_value, DESCRIPTION = description}; }
-        private string _get_result_type(object _res_object) { return _res_object.GetType().GetProperty("TYPE").GetValue(_res_object, null).ToString(); }
-        private object _get_result_value(object _res_object) { return _res_object.GetType().GetProperty("VALUE").GetValue(_res_object, null); }
-        private string _get_result_description(object _res_object) { return _res_object.GetType().GetProperty("DESCRIPTION").GetValue(_res_object, null).ToString(); }
+        private Dictionary<string, dynamic> _get_result_map(string type, object value, string description = "") {
+            return new Dictionary<string, dynamic>() { {"TYPE" , type }, {"VALUE" , value }, {"DESCRIPTION" , description } };
+        }
     }
 }
 
