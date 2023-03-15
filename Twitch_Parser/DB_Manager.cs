@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using MySql.Data.MySqlClient;       // for Connecting MySQL(Maria DB)
+using MySqlX.XDevAPI.Common;
 
 
 namespace Twitch_Parser {
@@ -74,6 +75,51 @@ namespace Twitch_Parser {
 
             while (_table.Read()) { ac(_table); }
 
+            this._conn.Close();
+            if (_results.Count == 0) { return this._get_result_map("ERR", "NO_DATA", "NO_DATA"); }
+            return this._get_result_map("OK", _results);
+        }
+
+        /// <summary> 닉네임으로 (Display name) 유저 데이터 찾는 함수  </summary>
+        public Dictionary<string, object> _get_channel_info_display_name(string D_NAME) {
+            string _sql = string.Format(
+                "SELECT * FROM `CHANNEL_INFO_TB` WHERE `D_NAME` LIKE '%{0}%'", D_NAME
+            );
+
+            try {
+                _conn.Open();
+            }catch(Exception e) {
+                return this._get_result_map("ERR", "CONN_OPEN_ERR", "CONN_OPEN_ERR");
+            }
+
+            MySqlCommand _cmd;
+            MySqlDataReader _table;
+            try {
+                _cmd = new MySqlCommand(_sql, _conn);
+                _table = _cmd.ExecuteReader();
+            }catch(Exception e) {
+                return this._get_result_map("ERR", e.ToString(), "EXECUTE_ERR");
+            } finally {
+                this._conn.Close();
+            }
+
+            List<CHANNEL_INFO_JAR> _results = new();
+            
+            // CHANNEL_INFO_TB 작업용 액션 
+            var ac = new Action<MySqlDataReader>(delegate (MySqlDataReader _reader) {
+                var _jar = new CHANNEL_INFO_JAR();
+                _jar.B_LOGIN_PK = (string)_reader["B_LOGIN_PK"];
+                _jar.B_LANG = (string)_reader["B_LANG"];
+                _jar.D_NAME = (string)_reader["D_NAME"];
+                _jar.B_ID = (int)_reader["B_ID"];
+                _jar.B_TAGS = JArray.Parse((string)_reader["B_TAGS"]).ToObject<List<string>>();
+                _jar.THUMB_URL = (string)_reader["THUMB_URL"];
+                _jar.ADD_AT = (DateTime)_reader["ADD_AT"];
+
+                _results.Add(_jar);
+            });
+
+            while (_table.Read()) { ac(_table); }
             this._conn.Close();
             if (_results.Count == 0) { return this._get_result_map("ERR", "NO_DATA", "NO_DATA"); }
             return this._get_result_map("OK", _results);
