@@ -45,13 +45,14 @@ namespace Twitch_Parser {
 
         /// <summary> 디비에 채널이 존재하는지 확인용 </summary>
         public Dictionary<string, object> _get_channel_info(string user_login) {
-            string sql = string.Format("SELECT * FROM CHANNEL_INFO_TB WHERE B_LOGIN_PK='{0}'", user_login);
+            string _sql = string.Format("SELECT * FROM CHANNEL_INFO_TB WHERE B_LOGIN_PK=@B_LOGIN_PK");
 
             this._conn.Open();
             MySqlCommand _cmd;
             MySqlDataReader _table;
             try {
-                _cmd = new MySqlCommand(sql, _conn);
+                _cmd = new MySqlCommand(_sql, _conn);
+                _cmd.Parameters.AddWithValue("@B_LOGIN_PK", user_login);
                 _table = _cmd.ExecuteReader();
             } catch (Exception e) {
                 return this._get_result_map("ERR", e.ToString(), "EXECUTE_ERR");
@@ -82,9 +83,7 @@ namespace Twitch_Parser {
 
         /// <summary> 닉네임으로 (Display name) 유저 데이터 찾는 함수  </summary>
         public Dictionary<string, object> _get_channel_info_display_name(string D_NAME) {
-            string _sql = string.Format(
-                "SELECT * FROM `CHANNEL_INFO_TB` WHERE `D_NAME` LIKE '%{0}%'", D_NAME
-            );
+            string _sql = "SELECT * FROM CHANNEL_INFO_TB WHERE `D_NAME` LIKE '@D_NAME'";
 
             try {
                 _conn.Open();
@@ -96,6 +95,7 @@ namespace Twitch_Parser {
             MySqlDataReader _table;
             try {
                 _cmd = new MySqlCommand(_sql, _conn);
+                _cmd.Parameters.AddWithValue("@D_NAME", D_NAME);
                 _table = _cmd.ExecuteReader();
             }catch(Exception e) {
                 return this._get_result_map("ERR", e.ToString(), "EXECUTE_ERR");
@@ -134,20 +134,27 @@ namespace Twitch_Parser {
 
             // Select 로 데이터 존재하는지 확인 
             var _select = _get_channel_info(B_LOGIN_PK);
-            if (_select["TYPE"] == "OK") { return this._get_result_map("ERR", "EXIST_DATA", "ALREADY_DATA"); }
-            if ((string)_select["VALUE"] != "NO_DATA") { return _select; }
+            if ((string) _select["TYPE"] == "OK") { return this._get_result_map("ERR", "EXIST_DATA", "ALREADY_DATA"); }
+            if ((string) _select["VALUE"] != "NO_DATA") { return _select; }
 
             string B_TAGS_string = string.Empty;
             if (B_TAGS == null || B_TAGS.Count == 0) { B_TAGS_string = "[]"; } else { B_TAGS_string = JsonConvert.SerializeObject(B_TAGS); }
 
-            string _sql = string.Format("INSERT INTO `CHANNEL_INFO_TB` " +
-                "(`B_LOGIN_PK`, `B_LANG`, `D_NAME`, `B_ID`, `B_TAGS`, `THUMB_URL`, `ADD_AT`) " +
-                "VALUES ('{0}', '{1}', '{2}', {3}, '{4}', '{5}', current_timestamp())"
-                , B_LOGIN_PK, B_LANG, D_NAME, B_ID, B_TAGS_string, THUMB_URL);
-            this._conn.Open();
-            MySqlCommand _cmd = new MySqlCommand(_sql, _conn);
 
-            try {
+            string _SQL = "INSERT INTO CHANNEL_INFO_TB (B_LOGIN_PK, B_LANG, D_NAME, B_ID, B_TAGS, THUMB_URL, ADD_AT) " +
+                   "VALUES (@B_LOGIN_PK, @B_LANG, @D_NAME, @B_ID, @B_TAGS, @THUMB_URL, DEFAULT)";
+
+            this._conn.Open();
+            MySqlCommand _cmd = new MySqlCommand(_SQL, _conn);
+            _cmd.Parameters.AddWithValue("@B_LOGIN_PK"  , B_LOGIN_PK        );
+            _cmd.Parameters.AddWithValue("@B_LANG"      , B_LANG            );
+            _cmd.Parameters.AddWithValue("@D_NAME"      , D_NAME            );
+            _cmd.Parameters.AddWithValue("@B_ID"        , B_ID.ToString()   );
+            _cmd.Parameters.AddWithValue("@B_TAGS"      , B_TAGS_string     );
+            _cmd.Parameters.AddWithValue("@THUMB_URL"   , THUMB_URL         );
+            Console.WriteLine(_cmd.Parameters.ToString());
+            try
+            {
                 var _res = _cmd.ExecuteNonQuery();
                 if (_res == 1) { return this._get_result_map("OK", "SNED_CONFIRM", "TRUE"); } else { return this._get_result_map("ERR", "SEND_ERROR", "SEND_ERR"); }
             } catch (Exception e) {
@@ -166,34 +173,49 @@ namespace Twitch_Parser {
             if (D_NAME == null && B_ID == null && THUMB_URL == null
                 && B_LANG == null && B_TAGS == null) { return this._get_result_map("ERR", "NO_INSERST_DATA", "NO_INSERT_DATA"); }
 
+            // 채널이 존재하는지 확인
             var _channel_select_res = this._get_channel_info(B_LOGIN_PK);
             if (_channel_select_res["TYPE"] != "OK") { return _channel_select_res; }
 
-            // Update 함수 단 개발
-            Func<string, string, dynamic, string> _update = (string B_LOGIN_PK, string column, dynamic _dt) => {
-                var _data_string = string.Empty;
-                if (_dt is string) { _data_string = string.Format("'{0}'", _dt); }
-                else if (_dt is List<string>) { _data_string = JsonConvert.SerializeObject(_dt); }
-                else if (_data_string == string.Empty) { _data_string = _dt.ToString(); }
-
-                string _sql = string.Format("UPDATE `CHANNEL_INFO_TB` SET `{0}` = `{1}`", column, _data_string);
-                _sql += string.Format(" WHERE `CHANNEL_INFO_TB`.`B_LOGIN_PK` = '{0}';", B_LOGIN_PK);
-                return _sql;
-            };
-
-            // sql input
-            this._conn.Open();
+            // Set Params
             string _sql = string.Empty;
-            if (D_NAME != null) { _sql += _update(B_LOGIN_PK, "D_NAME", D_NAME!); }
-            if (B_ID != null) { _sql += _update(B_LOGIN_PK, "B_ID", B_ID!); }
-            if (THUMB_URL != null) { _sql += _update(B_LOGIN_PK, "THUMB_URL", THUMB_URL!); }
-            if (B_LANG != null) { _sql += _update(B_LOGIN_PK, "B_LANG", B_LANG); }
-            if (B_TAGS != null) { _sql += _update(B_LOGIN_PK, "B_TAGS", B_TAGS); }
+            List<dynamic> _enable_columns = new() { };
+            if (D_NAME != null)     { _enable_columns.Add("D_NAME"   ); }
+            if (B_ID != null)       { _enable_columns.Add("B_ID"     ); }
+            if (THUMB_URL != null)  { _enable_columns.Add("THUMB_URL"); }
+            if (B_LANG != null)     { _enable_columns.Add("B_LANG"   ); }
+            if (B_TAGS != null)     { _enable_columns.Add("B_TAGS"   ); }
 
+            foreach(string i in _enable_columns) {
+                _sql += string.Format("UPDATE `CHANNEL_INFO_TB` SET `{0}` = {1} ", i, "@" + i);
+                _sql += string.Format("WHERE `CHANNEL_INFO_TB`.`B_LOGIN_PK` = @B_LOGIN_PK; ");
+            }
+
+            // Conn Open
+            try {
+                _conn.Open();
+            }catch(Exception e){
+                return this._get_result_map("ERR", "CONN_OPEN_ERR", "CONN_OPEN_ERR");
+            }
+
+            // @B_TAGS 정리
+            string B_TAGS_string = "[]";
+            if (B_TAGS.Count != 0) { B_TAGS_string = string.Format("[\"{0}\"]", string.Join(',', B_TAGS)); }
+
+            // @Params 정
             MySqlCommand _cmd = new MySqlCommand(_sql, this._conn);
+            if (B_LOGIN_PK != null) { _cmd.Parameters.AddWithValue("@B_LOGIN_PK", B_LOGIN_PK    );}
+            if (B_ID != null)       { _cmd.Parameters.AddWithValue("@B_ID", B_ID                );}
+            if (D_NAME != null)     { _cmd.Parameters.AddWithValue("@D_NAME", D_NAME            );}
+            if (THUMB_URL != null)  { _cmd.Parameters.AddWithValue(@"THUMB_URL", THUMB_URL      );}
+            if (B_LANG != null)     { _cmd.Parameters.AddWithValue("@B_LANG", B_LANG            );}
+            if (B_TAGS != null)     { _cmd.Parameters.AddWithValue("@B_TAGS", B_TAGS_string     );}
+
+            // ExecuteNoneQuery
             try {
                 var _res = _cmd.ExecuteNonQuery();
-                if (_res == 1) { return this._get_result_map("OK", "UPDATE_CONFIRM", "UPDATE_CONFIRM"); } else { return this._get_result_map("ERR", "UPDATE_ERROR", "UPDATE_ERR"); }
+                if (_res != 0) { return this._get_result_map("OK", "UPDATE_CONFIRM", "UPDATE_CONFIRM"); }
+                else { Console.WriteLine(_res.ToString()); return this._get_result_map("ERR", "UPDATE_ERROR", "UPDATE_ERR"); }
             } catch (Exception e) {
                 return this._get_result_map("ERR", e.ToString(), "EXCUTE_QUERY_ERR");
             } finally {
@@ -232,8 +254,8 @@ namespace Twitch_Parser {
 
     public class CHANNEL_INFO_JAR {
         public string           B_LOGIN_PK; public string?  B_LANG;
-        public string           D_NAME;     public int      B_ID;
-        public List<string>?    B_TAGS;     public string   THUMB_URL;
+        public string?          D_NAME;     public int?     B_ID;
+        public List<string>?    B_TAGS;     public string?  THUMB_URL;
         public DateTime?        ADD_AT;
     }
 
@@ -242,5 +264,6 @@ namespace Twitch_Parser {
         public int              G_ID;       public string   G_NAME;
         public string           TITLE;      public int      VIEW_COUNT;
         public DateTime         START_AT;   public string   THUMB_IMG;
+        public DateTime         UPDATE_AT;  // 디비로 부터 받아온 시
     }
 }
