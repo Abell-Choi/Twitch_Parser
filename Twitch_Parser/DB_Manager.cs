@@ -19,23 +19,27 @@ namespace Twitch_Parser {
 
         // Connection 연결 
         private bool _set_connection_object(string _url, string _db_name, string _id, string _pw) {
+            // default connection setting (port)
             string _url_parse = _url;
             int port_parse = 3306;
             if (_url.Contains(':')) {
                 _url_parse = _url.Split(':')[0];
                 port_parse = int.Parse(_url.Split(':')[1]);
             }
+
+            // connection information setup
             string _conn_str = "Server=" + _url_parse;
             _conn_str += ";Port=" + port_parse.ToString();
             _conn_str += ";Database=" + _db_name;
             _conn_str += ";Uid=" + _id;
             _conn_str += ";Pwd=" + _pw;
 
+            // sql connection
             try {
                 MySqlConnection _sql_conn = new MySqlConnection(_conn_str);
-                _sql_conn.Open();
-                this._conn = _sql_conn;
-                _sql_conn.Close();
+                                _sql_conn.Open();
+                this._conn =    _sql_conn;
+                                _sql_conn.Close();
                 return true;
             } catch (Exception e) {
                 Console.WriteLine(e.ToString());
@@ -45,11 +49,19 @@ namespace Twitch_Parser {
 
         /// <summary> 디비에 채널이 존재하는지 확인용 </summary>
         public Dictionary<string, object> _get_channel_info(string user_login) {
-            string _sql = string.Format("SELECT * FROM CHANNEL_INFO_TB WHERE B_LOGIN_PK=@B_LOGIN_PK");
 
-            this._conn.Open();
-            MySqlCommand _cmd;
+            // SQL string 설정 
+            string _sql = string.Format("SELECT * FROM CHANNEL_INFO_TB " +
+                "WHERE B_LOGIN_PK=@B_LOGIN_PK");
+
+            // Connection Open
+            try{ this._conn.Open(); }
+            catch (Exception e){ return this._get_result_map("ERR", e.ToString(), "CONN_ERR");}
+
+            MySqlCommand    _cmd;
             MySqlDataReader _table;
+
+            // set sql params and executing
             try {
                 _cmd = new MySqlCommand(_sql, _conn);
                 _cmd.Parameters.AddWithValue("@B_LOGIN_PK", user_login);
@@ -63,13 +75,13 @@ namespace Twitch_Parser {
             // CHANNEL_INFO_TB 작업용 액션 
             var ac = new Action<MySqlDataReader>(delegate (MySqlDataReader _reader) {
                 var _jar = new CHANNEL_INFO_JAR();
-                _jar.B_LOGIN_PK = (string)_reader["B_LOGIN_PK"];
-                _jar.B_LANG = (string)_reader["B_LANG"];
-                _jar.D_NAME = (string)_reader["D_NAME"];
-                _jar.B_ID = (int)_reader["B_ID"];
-                _jar.B_TAGS = JArray.Parse((string)_reader["B_TAGS"]).ToObject<List<string>>();
-                _jar.THUMB_URL = (string)_reader["THUMB_URL"];
-                _jar.ADD_AT = (DateTime)_reader["ADD_AT"];
+                _jar.B_LOGIN_PK     = (string)_reader["B_LOGIN_PK"];
+                _jar.B_LANG         = (string)_reader["B_LANG"];
+                _jar.D_NAME         = (string)_reader["D_NAME"];
+                _jar.B_ID           = (int)_reader["B_ID"];
+                _jar.B_TAGS         = JArray.Parse((string)_reader["B_TAGS"]).ToObject<List<string>>();
+                _jar.THUMB_URL      = (string)_reader["THUMB_URL"];
+                _jar.ADD_AT         = (DateTime)_reader["ADD_AT"];
 
                 _results.Add(_jar);
             });
@@ -83,16 +95,18 @@ namespace Twitch_Parser {
 
         /// <summary> 닉네임으로 (Display name) 유저 데이터 찾는 함수  </summary>
         public Dictionary<string, object> _get_channel_info_display_name(string D_NAME) {
+
+            // SQL string setting
             string _sql = "SELECT * FROM CHANNEL_INFO_TB WHERE `D_NAME` LIKE '@D_NAME'";
 
-            try {
-                _conn.Open();
-            }catch(Exception e) {
-                return this._get_result_map("ERR", "CONN_OPEN_ERR", "CONN_OPEN_ERR");
-            }
+            // Connection Open
+            try { _conn.Open(); }
+            catch(Exception e) { return this._get_result_map("ERR", "CONN_OPEN_ERR", "CONN_OPEN_ERR");}
 
-            MySqlCommand _cmd;
+            MySqlCommand    _cmd;
             MySqlDataReader _table;
+
+            // set sql params and executing
             try {
                 _cmd = new MySqlCommand(_sql, _conn);
                 _cmd.Parameters.AddWithValue("@D_NAME", D_NAME);
@@ -119,6 +133,7 @@ namespace Twitch_Parser {
                 _results.Add(_jar);
             });
 
+            // read all columns and converting
             while (_table.Read()) { ac(_table); }
             this._conn.Close();
             if (_results.Count == 0) { return this._get_result_map("ERR", "NO_DATA", "NO_DATA"); }
@@ -132,19 +147,24 @@ namespace Twitch_Parser {
             string THUMB_URL, string B_LANG = "KO", List<string> B_TAGS = null
         ) {
 
-            // Select 로 데이터 존재하는지 확인 
+            // SELECT 로 데이터 존재하는지 확인 
             var _select = _get_channel_info(B_LOGIN_PK);
             if ((string) _select["TYPE"] == "OK") { return this._get_result_map("ERR", "EXIST_DATA", "ALREADY_DATA"); }
             if ((string) _select["VALUE"] != "NO_DATA") { return _select; }
 
+            // TAGS string setting
             string B_TAGS_string = string.Empty;
             if (B_TAGS == null || B_TAGS.Count == 0) { B_TAGS_string = "[]"; } else { B_TAGS_string = JsonConvert.SerializeObject(B_TAGS); }
 
-
+            // SQL String setting
             string _SQL = "INSERT INTO CHANNEL_INFO_TB (B_LOGIN_PK, B_LANG, D_NAME, B_ID, B_TAGS, THUMB_URL, ADD_AT) " +
                    "VALUES (@B_LOGIN_PK, @B_LANG, @D_NAME, @B_ID, @B_TAGS, @THUMB_URL, DEFAULT)";
 
-            this._conn.Open();
+            // Connection Open
+            try { this._conn.Open(); }
+            catch(Exception e) { return this._get_result_map("ERR", e.ToString(), "CONN_ERR");}
+
+            // Param Setting
             MySqlCommand _cmd = new MySqlCommand(_SQL, _conn);
             _cmd.Parameters.AddWithValue("@B_LOGIN_PK"  , B_LOGIN_PK        );
             _cmd.Parameters.AddWithValue("@B_LANG"      , B_LANG            );
@@ -152,7 +172,8 @@ namespace Twitch_Parser {
             _cmd.Parameters.AddWithValue("@B_ID"        , B_ID.ToString()   );
             _cmd.Parameters.AddWithValue("@B_TAGS"      , B_TAGS_string     );
             _cmd.Parameters.AddWithValue("@THUMB_URL"   , THUMB_URL         );
-            Console.WriteLine(_cmd.Parameters.ToString());
+
+            // Execute Query
             try
             {
                 var _res = _cmd.ExecuteNonQuery();
@@ -225,16 +246,19 @@ namespace Twitch_Parser {
 
         /// <summary> 방송유저 삭제 </summary>
         public Dictionary<string, object> _remove_channel_info (string B_LOGIN_PK){
+            // setting sql query
             string _sql =
-                string.Format("DELETE FROM `CHANNEL_INFO_TB` WHERE `CHANNEL_INFO_TB`.`B_LOGIN_PK`='{0}'", B_LOGIN_PK);
+                string.Format("DELETE FROM `CHANNEL_INFO_TB` WHERE `CHANNEL_INFO_TB`.`B_LOGIN_PK`='@B_LOGIN_PK'", B_LOGIN_PK);
 
-            try { 
-                this._conn.Open();
-            }catch(Exception e) {
-                return this._get_result_map("ERR", e.ToString(), "CONN_ERR");
-            }
+            // connection open
+            try {  this._conn.Open(); }
+            catch(Exception e) { return this._get_result_map("ERR", e.ToString(), "CONN_ERR");}
 
+            // param set
             MySqlCommand _cmd = new MySqlCommand(_sql, this._conn);
+            _cmd.Parameters.AddWithValue("@B_LOGIN_PK", B_LOGIN_PK);
+
+            // commit query and send query
             try {
                 var _res = _cmd.ExecuteNonQuery();
                 if (_res == 1) { return this._get_result_map("OK", "DELETE_CONFIRM", "DELETE_CONFIRM"); }
@@ -247,9 +271,11 @@ namespace Twitch_Parser {
             
         }
 
+        /// <summary> 리턴 타입 정규화(?) 적으로 하기 위한 함수임 </summary>
         private Dictionary<string, dynamic> _get_result_map(string type, object value, string description = "") {
             return new Dictionary<string, dynamic>() { {"TYPE" , type }, {"VALUE" , value }, {"DESCRIPTION" , description } };
         }
+
     }
 
     public class CHANNEL_INFO_JAR {
