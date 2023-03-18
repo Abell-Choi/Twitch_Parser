@@ -22,9 +22,12 @@ namespace Twitch_Parser {
 
         public Twitch_Manager(string _client_id, string _client_secret) {
             var _token_result = this._get_new_token(_client_id, _client_secret);
+            // 토큰 받아오는거 실패하면 에러 발생 
             if (_token_result["TYPE"] != "OK") {
                 throw new Exception((string)_token_result["VALUE"]);
             }
+
+            // 기본 클래스 내부 변수 설정
             this._client_id = _client_id;
             this._client_secret = _client_secret;
             this._client_token = "Bearer ";
