@@ -47,6 +47,33 @@ namespace Twitch_Parser {
             }
         }
 
+
+        /// <summary> 등록된 모든 채널 가져오기 </summary>
+        public Dictionary<string, object> _get_all_channel_user_ids() {
+            string _sql = string.Format("SELECT B_LOGIN_PK FROM CHANNEL_INFO_TB");      // sql query setting
+            var _conn_res = this._server_open();
+            if (_conn_res["TYPE"] != "OK") { return _conn_res; }
+
+            MySqlCommand    _cmd;
+            MySqlDataReader _table;
+
+            // set sql params executing
+            try {
+                _cmd = new MySqlCommand(_sql, _conn);
+                _table = _cmd.ExecuteReader();
+            }catch(Exception e) {
+                return this._get_result_map("ERR", e.ToString(), "EXECUTE_ERR");
+            } finally{
+                _conn.Close();
+            }
+
+            // converting table -> List<string>
+            List<string> _B_LOGIN_PK_Lists = new() {};
+            while (_table.Read()) { _B_LOGIN_PK_Lists.Add((string)_table["B_LOGIN_PK"]);}
+
+            return this._get_result_map("OK", _B_LOGIN_PK_Lists);
+        }
+
         /// <summary> 디비에 채널이 존재하는지 확인용 </summary>
         public Dictionary<string, object> _get_channel_info(string user_login) {
 
@@ -55,8 +82,8 @@ namespace Twitch_Parser {
                 "WHERE B_LOGIN_PK=@B_LOGIN_PK");
 
             // Connection Open
-            try{ this._conn.Open(); }
-            catch (Exception e){ return this._get_result_map("ERR", e.ToString(), "CONN_ERR");}
+            var _conn_res = this._server_open();
+            if (_conn_res["TYPE"] != "OK") { return _conn_res; }
 
             MySqlCommand    _cmd;
             MySqlDataReader _table;
@@ -68,6 +95,8 @@ namespace Twitch_Parser {
                 _table = _cmd.ExecuteReader();
             } catch (Exception e) {
                 return this._get_result_map("ERR", e.ToString(), "EXECUTE_ERR");
+            } finally {
+                _conn.Close();
             }
 
             List<CHANNEL_INFO_JAR> _results = new();
@@ -99,9 +128,10 @@ namespace Twitch_Parser {
             // SQL string setting
             string _sql = "SELECT * FROM CHANNEL_INFO_TB WHERE `D_NAME` LIKE '@D_NAME'";
 
+
             // Connection Open
-            try { _conn.Open(); }
-            catch(Exception e) { return this._get_result_map("ERR", "CONN_OPEN_ERR", "CONN_OPEN_ERR");}
+            var _conn_res = this._server_open();
+            if (_conn_res["TYPE"] != "OK") { return _conn_res; }
 
             MySqlCommand    _cmd;
             MySqlDataReader _table;
@@ -141,6 +171,13 @@ namespace Twitch_Parser {
         }
 
 
+
+        public Dictionary<string, object> insert_channel_info(CHANNEL_INFO_JAR _jar) {
+            return this._insert_channel_info(
+                _jar.B_LOGIN_PK, _jar.D_NAME, (int)_jar.B_ID, _jar.THUMB_URL, _jar.B_LANG, _jar.B_TAGS
+            );
+        }
+
         /// <summary> 채널 추가용 </summary>
         public Dictionary<string, object> _insert_channel_info(
             string B_LOGIN_PK, string D_NAME, int B_ID,
@@ -161,8 +198,8 @@ namespace Twitch_Parser {
                    "VALUES (@B_LOGIN_PK, @B_LANG, @D_NAME, @B_ID, @B_TAGS, @THUMB_URL, DEFAULT)";
 
             // Connection Open
-            try { this._conn.Open(); }
-            catch(Exception e) { return this._get_result_map("ERR", e.ToString(), "CONN_ERR");}
+            var _conn_res = this._server_open();
+            if (_conn_res["TYPE"] != "OK") { return _conn_res; }
 
             // Param Setting
             MySqlCommand _cmd = new MySqlCommand(_SQL, _conn);
@@ -185,7 +222,7 @@ namespace Twitch_Parser {
             }
         }
 
-        /// <summary> 방송유저 업데이트 용 </summary>
+        /// <summary> 채널 업데이트 용 </summary>
         public Dictionary<string, object> _update_channel_info(
             string B_LOGIN_PK, string? D_NAME = null, int? B_ID = null,
             string? THUMB_URL = null, string? B_LANG = null, List<string> B_TAGS = null
@@ -212,12 +249,10 @@ namespace Twitch_Parser {
                 _sql += string.Format("WHERE `CHANNEL_INFO_TB`.`B_LOGIN_PK` = @B_LOGIN_PK; ");
             }
 
-            // Conn Open
-            try {
-                _conn.Open();
-            }catch(Exception e){
-                return this._get_result_map("ERR", "CONN_OPEN_ERR", "CONN_OPEN_ERR");
-            }
+
+            // Connection Open
+            var _conn_res = this._server_open();
+            if (_conn_res["TYPE"] != "OK") { return _conn_res; }
 
             // @B_TAGS 정리
             string B_TAGS_string = "[]";
@@ -244,7 +279,7 @@ namespace Twitch_Parser {
             }
         }
 
-        /// <summary> 방송유저 삭제 </summary>
+        /// <summary> 채널 삭제 </summary>
         public Dictionary<string, object> _remove_channel_info (string B_LOGIN_PK){
             // setting sql query
             string _sql =
@@ -268,12 +303,184 @@ namespace Twitch_Parser {
             } finally {
                 this._conn.Close();
             }
-            
+
+        }
+
+        /// <summary> DB에 저장된 방송중인 유저들 ID 긁어옴  </summary>
+        Dictionary<string, dynamic> _get_stream_user_list (string B_LOGIN_PK) {
+            string _sql = "SELECT B_LOGIN_PK FROM STREAM_STATUS_TB";
+
+            // conneciton open
+            try { this._conn.Open(); }
+            catch(Exception e) { return this._get_result_map("ERR", e.ToString(), "CONN_ERR"); }
+            finally { try { this._conn.Clone(); } catch { } }
+
+            MySqlCommand _cmd;
+            MySqlDataReader _table;
+
+            List<string> _broadcast_user_lists = new();
+
+            // set sql params executing
+            try
+            {
+                _cmd = new MySqlCommand(_sql, _conn);
+                _table = _cmd.ExecuteReader();
+            }
+            catch (Exception e)
+            {
+                return this._get_result_map("ERR", e.ToString(), "EXECUTE_ERR");
+            }
+            finally
+            {
+                _conn.Close();
+            }
+
+            // converting table -> List<string>
+            while (_table.Read()) { _broadcast_user_lists.Add((string)_table["B_LOGIN_PK"]); }
+
+            if (_broadcast_user_lists.Count == 0) { return this._get_result_map("ERR", "NO_DATA", "NO_DATA`"); }
+
+            return this._get_result_map("OK", _broadcast_user_lists);
+        }
+
+        /// <summary> 지정한 유저의 방송정보를 가져옴 </summary>
+        public Dictionary<string, object> _get_stream_info(string B_LOGIN_PK) {
+            // check B_LOGIN_BK Exist
+            var _check_channel_info = this._get_channel_info(B_LOGIN_PK);
+            if (_check_channel_info["TYPE"] != "OK") { return _check_channel_info; }
+
+            string _SQL = "SELECT * FROM STREAM_STATUS_TB WHERE B_LOGIN_PK=@B_LOGIN_PK";
+
+            //open conn
+            var _conn_res = this._server_open();
+            if (_conn_res["TYPE"] != "OK") { return _conn_res; }
+
+            MySqlCommand _cmd;
+            MySqlDataReader _table;
+
+            List<string> _broadcast_user_lists = new();
+
+            // set sql params executing
+            try {
+                _cmd = new MySqlCommand(_SQL, _conn);
+                _cmd.Parameters.AddWithValue("@B_LOGIN_PK", B_LOGIN_PK);
+                _table = _cmd.ExecuteReader();
+            }
+            catch (Exception e) { return this._get_result_map("ERR", e.ToString(), "EXECUTE_ERR");}
+            finally { _conn.Close(); }
+
+            if(_table.Read() == false) { return this._get_result_map("ERR", "NO_DATA", "NO_DATA"); }
+
+            // Data organize
+            STREAM_STATUS_JAR _jar = new();
+            _jar.B_LOGIN_PK     = (string) _table["B_LOGIN_PK"];
+            _jar.B_ID           = (int) _table["B_ID"];
+            _jar.G_ID           = (int) _table["G_ID"];
+            _jar.G_NAME         = (string) _table["G_NAME"];
+            _jar.TITLE          = (string) _table["TITLE"];
+            _jar.VIEW_COUNT     = (int)_table["VIEW_COUNT"];
+            _jar.START_AT       = DateTime.Parse((string)_table["START_AT"]);
+            _jar.THUMB_IMG      = (string)_table["THUMB_IMG"];
+
+            return this._get_result_map( "OK", _jar, "OK");
+
+        }
+
+        /// <summary> 방송 정보를 추가하는 코드 </summary>
+        Dictionary<string, object> _insert_stream_data(STREAM_STATUS_JAR _jar) {
+            return this._insert_stream_data(_jar.B_LOGIN_PK, _jar.B_ID, _jar.G_ID, _jar.G_NAME,
+                _jar.TITLE, _jar.VIEW_COUNT, _jar.START_AT, _jar.THUMB_IMG);
+        }
+
+        Dictionary<string, object> _insert_stream_data(
+         string B_LOGIN_PK, int B_ID, int G_ID, string G_NAME,
+         string TITLE, int VIEW_COUNT, DateTime START_AT, string THUMB_IMG){
+            // 데이터 존재 확인 -> 있으면 업데이트로 전
+            var _exist_check = this._get_stream_info(B_LOGIN_PK);
+            if (_exist_check["TYPE"] == "OK") {
+                return this._update_stream_data(
+                    B_LOGIN_PK, B_ID, G_ID, G_NAME, TITLE, VIEW_COUNT, START_AT, THUMB_IMG
+                );
+            }
+
+            // Connection Check
+            var _conn_check = this._server_open();
+            if (_conn_check["TYPE"] != "OK") { return _conn_check; }
+
+            // SQL
+            string _SQL = "INSERT INTO `STREAM_STATUS_TB` (`B_LOGIN_PK`, `B_ID`, `G_ID`, `G_NAME`, `TITLE`, `VIEW_COUNT`, `START_AT`, `THUMB_IMG`)";
+            _SQL += " VALUES (@B_LOGIN_PK, @B_ID, @G_ID, @G_NAME, @TITLE, @VIEW_COUNT, @START_AT, THUMB_IMG)";
+
+            MySqlCommand _cmd;
+            int _execute_res = -1;
+
+            _cmd = new MySqlCommand(_SQL, _conn);
+            _cmd.Parameters.AddWithValue("@B_LOGIN_PK", B_LOGIN_PK);
+
+            // set sql params executing
+            try
+            { _execute_res = _cmd.ExecuteNonQuery();}
+            catch (Exception e) { return this._get_result_map("ERR", e.ToString(), "EXECUTE_ERR"); }
+            finally { _conn.Close(); }
+
+            if (_execute_res <= 0) { return this._get_result_map("ERR", "EXECUTE_ERR", "EXECUTE_ERR"); }
+            return this._get_result_map("OK", "INSERT_OK");
+
+        }
+
+        Dictionary<string, object> _update_stream_data(
+            string B_LOGIN_PK, int B_ID, int G_ID, string G_NAME,
+            string TITLE, int VIEW_COUNT, DateTime START_AT, string THUMB_IMG) {
+
+            // Exist Checker
+            var _exist_checker = this._get_stream_info(B_LOGIN_PK);
+            if (_exist_checker["TYPE"] != "OK") { return this._insert_stream_data(
+                    B_LOGIN_PK, B_ID, G_ID, G_NAME, TITLE, VIEW_COUNT, START_AT, THUMB_IMG
+            ); }
+
+            // Connection Checker
+            var _conn_check = this._server_open();
+            if (_conn_check["TYPE"] != "OK") { return _conn_check; }
+
+            string _SQL = "UPDATE `STREAM_STATUS_TB` SET ";
+            _SQL += "`B_ID` = @B_ID, `G_ID` = @G_ID, `G_NAME` = @G_NAME, `TITLE` = @TITLE,";
+            _SQL += "`VIEW_COUNT` = @VIEW_COUNT, `START_AT` = @START_AT, `THUMB_IMG` = @THUMB_IMG";
+            _SQL += " WHERE `STREAM_STATUS_TB`.`B_LOGIN_PK = @B_LOGIN_PK`";
+
+            MySqlCommand _cmd;
+            int _execute_res = -1;
+
+            _cmd = new MySqlCommand(_SQL, _conn);
+            _cmd.Parameters.AddWithValue("@B_LOGIN_PK", B_LOGIN_PK);
+            _cmd.Parameters.AddWithValue("@B_ID", B_ID);
+            _cmd.Parameters.AddWithValue("@G_ID", G_ID);
+            _cmd.Parameters.AddWithValue("@G_NAME", G_NAME);
+            _cmd.Parameters.AddWithValue("@TITLE", TITLE);
+            _cmd.Parameters.AddWithValue("@VIEW_COUNT", VIEW_COUNT);
+            _cmd.Parameters.AddWithValue("@START_AT", START_AT);
+            _cmd.Parameters.AddWithValue("@THUMB_IMG", THUMB_IMG);
+
+            try {
+                _cmd.ExecuteNonQuery();
+            }catch(Exception e){ return this._get_result_map("ERR", e.ToString(), "EXECUTE_ERR"); }
+            finally { _conn.Close(); }
+
+            if (_execute_res <= 0) { return this._get_result_map("ERR", "NO CHANGED", "NO_CHANGED"); }
+            return this._get_result_map("OK", @"{B_LOGIN_PK} is changed", B_LOGIN_PK);
         }
 
         /// <summary> 리턴 타입 정규화(?) 적으로 하기 위한 함수임 </summary>
         private Dictionary<string, dynamic> _get_result_map(string type, object value, string description = "") {
             return new Dictionary<string, dynamic>() { {"TYPE" , type }, {"VALUE" , value }, {"DESCRIPTION" , description } };
+        }
+
+        /// <summary> Connection Open 을 하기 위한 함수 </summary>
+        private Dictionary<string, dynamic> _server_open() {
+            // Conn open
+            try { this._conn.Open(); }
+            catch (Exception e) { return this._get_result_map("ERR", e.ToString(), "CONN_ERR"); }
+
+            return this._get_result_map("OK", "CONN_OK", "CONN_OPEN");
         }
 
     }
