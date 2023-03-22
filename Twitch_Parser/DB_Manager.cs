@@ -3,8 +3,7 @@ using System.Linq;
 using System.Collections.Generic;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
-using MySql.Data.MySqlClient;       // for Connecting MySQL(Maria DB)
-using MySqlX.XDevAPI.Common;
+using MySqlConnector;
 
 
 namespace Twitch_Parser {
@@ -21,10 +20,10 @@ namespace Twitch_Parser {
         /*---------- SELECT UPDATE INSERT DELETE -------------*/
 
         ///<summary> select 전송 </summary>
-        private Dictionary<string, object> _select_data( Dictionary<string, object> _param_key_values ){
+        private Dictionary<string, object> _select_simple(string table, Dictionary<string, object> _params) {
+            this._server_open();
             return null;
         }
-
 
 
         /*----------- CHANNEL_INFO_TB ---------------*/
@@ -107,11 +106,11 @@ namespace Twitch_Parser {
             }
 
             // connection information setup
-            string _conn_str = "Server=" + _url_parse;
-            _conn_str += ";Port=" + port_parse.ToString();
-            _conn_str += ";Database=" + _db_name;
-            _conn_str += ";Uid=" + _id;
-            _conn_str += ";Pwd=" + _pw;
+            string _conn_str =      "server=" + _url_parse;
+            _conn_str +=            ";port=" + port_parse.ToString();
+            _conn_str +=            ";database=" + _db_name;
+            _conn_str +=            ";user=" + _id;
+            _conn_str +=            ";password=" + _pw;
 
             // sql connection
             try {
