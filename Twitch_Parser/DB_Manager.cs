@@ -16,26 +16,48 @@ namespace Twitch_Parser {
             }
         }
 
-
-        /*---------- SELECT UPDATE INSERT DELETE -------------*/
-
-        ///<summary> select 전송 </summary>
-        private Dictionary<string, object> _select_simple(string table, Dictionary<string, object> _params) {
-            this._server_open();
-            return null;
-        }
-
-
         /*----------- CHANNEL_INFO_TB ---------------*/
-        /*B_LOGIN_PK, B_LANG< D_NAME, B_ID, B_TAGS, THUMB_URL, ADD_AT*/
+        /*B_LOGIN_PK, B_LANG, D_NAME, B_ID, B_TAGS, THUMB_URL, ADD_AT*/
         ///<summary> channel id list 받기  </summary>
-        public Dictionary<string, object> _get_db_channels_id(){
-            return null;
+        public List<string> _get_B_LOGIN_PK_lists(){
+            _conn.Open();
+            string _SQL = "SELECT B_LOGIN_PK FROM CHANNEL_INFO_TB";
+            var _cmd = new MySqlCommand(_SQL, this._conn);
+
+            List<string> B_LOGIN_PKs = new() { };
+            var _reader = _cmd.ExecuteReader();
+            while (_reader.Read()) {
+                B_LOGIN_PKs.Add((string)_reader["B_LOGIN_PK"]);
+            }
+            return B_LOGIN_PKs;
         }
 
         ///<summary> channel 정보 받기  </summary>
-        public Dictionary<string, object> _get_channel_info(string B_LOGK_PK) {
-            return null;
+        public CHANNEL_INFO_JAR _get_channel_info(string B_LOGIN_PK) {
+
+            string _SQL = "SELECT * FROM CHANNEL_INFO_TB WHERE B_LOGIN_PK=@B_LOGIN_PK";
+            _conn.Open();
+            var _cmd = new MySqlCommand(_SQL, this._conn);
+
+            _cmd.Parameters.AddWithValue("@B_LOGIN_PK", B_LOGIN_PK);
+            var _reader = _cmd.ExecuteReader();
+
+            if (!_reader.Read()) {
+                _conn.Close();
+                return null;
+            }
+
+            CHANNEL_INFO_JAR _jar = new();
+            _jar.B_LOGIN_PK = (string)_reader["B_LOGIN_PK"];
+            _jar.B_LANG = (string)_reader["B_LANG"];
+            _jar.D_NAME = (string)_reader["D_NAME"];
+            _jar.B_ID = (int)_reader["B_ID"];
+            _jar.B_TAGS = JArray.Parse((string)_reader["B_TAGS"]).ToObject<List<string>>();
+            _jar.THUMB_URL = (string)_reader["THUMB_URL"];
+            _jar.ADD_AT = (DateTime)_reader["ADD_AT"];
+
+            _conn.Close();
+            return _jar;
         }
 
         ///<summary> channel 정보를 display_name으로 받기 </summary>
@@ -128,18 +150,6 @@ namespace Twitch_Parser {
         /// <summary> 리턴 타입 정규화(?) 적으로 하기 위한 함수임 </summary>
         private Dictionary<string, dynamic> _get_result_map(string type, object value, string description = "") {
             return new Dictionary<string, dynamic>() { {"TYPE" , type }, {"VALUE" , value }, {"DESCRIPTION" , description } };
-        }
-
-        /// <summary> Connection Open 을 하기 위한 함수 </summary>
-        private Dictionary<string, dynamic> _server_open() {
-            if (this._conn.State == System.Data.ConnectionState.Open) {
-                return this._get_result_map("OK", "CONN_OK", "CONN_OPEN");
-            }
-            // Conn open
-            try { this._conn.Open(); }
-            catch (Exception e) { return this._get_result_map("ERR", e.ToString(), "CONN_ERR"); }
-
-            return this._get_result_map("OK", "CONN_OK", "CONN_OPEN");
         }
     }
 }
