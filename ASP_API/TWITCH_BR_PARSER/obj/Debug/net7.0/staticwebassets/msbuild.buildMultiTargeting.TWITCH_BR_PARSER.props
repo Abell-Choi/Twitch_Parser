@@ -1,0 +1,3 @@
+﻿<Project>
+  <Import Project="../build/TWITCH_BR_PARSER.props" />
+</Project>

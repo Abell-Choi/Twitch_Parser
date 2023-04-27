@@ -1,0 +1,11 @@
+{
+  "Version": 1,
+  "Hash": "rHUnhPHHRmRuCFvVjC6LDLIUsLw0FwliM2P61q0Tkfg=",
+  "Source": "TWITCH_BR_PARSER",
+  "BasePath": "_content/TWITCH_BR_PARSER",
+  "Mode": "Default",
+  "ManifestType": "Build",
+  "ReferencedProjectsConfiguration": [],
+  "DiscoveryPatterns": [],
+  "Assets": []
+}
