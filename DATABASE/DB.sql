@@ -1,0 +1,39 @@
+SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
+START TRANSACTION;
+SET time_zone = "+00:00";
+
+--
+-- 테이블 구조 `CHANNEL_INFO_TB`
+--
+
+CREATE TABLE `CHANNEL_INFO_TB` (
+  `B_LOGIN_PK` varchar(256) NOT NULL,
+  `B_LANG` varchar(256) DEFAULT NULL,
+  `D_NAME` varchar(256) DEFAULT NULL,
+  `B_ID` int(255) DEFAULT NULL,
+  `B_TAGS` text DEFAULT NULL,
+  `THUMB_URL` text DEFAULT NULL,
+  `ADD_AT` datetime NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+CREATE TABLE `STREAM_STATUS_TB` ( 
+  `B_LOGIN_PK` varchar(256) NOT NULL, 
+  `B_ID` int(255) NOT NULL, 
+  `G_ID` int(255) NOT NULL, 
+  `G_NAME` text NOT NULL, 
+  `TITLE` text NOT NULL, 
+  `VIEW_COUNT` int(255) NOT NULL, 
+  `START_AT` datetime NOT NULL DEFAULT current_timestamp(), 
+  `THUMB_IMG` text NOT NULL 
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+--
+-- 테이블의 인덱스 `CHANNEL_INFO_TB`
+--
+ALTER TABLE `CHANNEL_INFO_TB`
+  ADD PRIMARY KEY (`B_LOGIN_PK`);
+
+--
+-- 테이블의 인덱스 `STREAM_STATUS_TB`
+--
+ALTER TABLE `STREAM_STATUS_TB`
+  ADD PRIMARY KEY (`B_LOGIN_PK`);
