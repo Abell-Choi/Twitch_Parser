@@ -1,6 +1,9 @@
-﻿using System;
+using System;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using System.ComponentModel;
+using System.ComponentModel.DataAnnotations;
+
 
 namespace Twitch_Parser
 {
@@ -27,11 +30,20 @@ namespace Twitch_Parser
                 }, Formatting.Indented
             );
         }
+
+        public Dictionary<string ,dynamic> ToDictionary ( ) {
+            return new Dictionary<string, dynamic>( ) {
+                { "B_LOGIN_PK", B_LOGIN_PK},    {"B_LANG", B_LANG}, {"D_NAME", D_NAME},
+                {"B_ID", B_ID }, {"B_TAGS", B_TAGS}, {"THUMB_URL" , THUMB_URL}, {"ADD_AT", ADD_AT}
+            };
+        }
     }
 
     public class STREAM_STATUS_JAR
     {
-        public string       B_LOGIN_PK; public int B_ID;
+        [Required]
+        public string       B_LOGIN_PK;
+        public int B_ID;
         public int          G_ID;       public string G_NAME;
         public string       TITLE;      public int VIEW_COUNT;
         public DateTime     START_AT;   public string THUMB_IMG;
@@ -47,6 +59,13 @@ namespace Twitch_Parser
                     UPDATE_AT = UPDATE_AT
                 }, Formatting.Indented
             );
+        }
+
+        public Dictionary<string,dynamic> ToDictionary ( ) {
+            return new Dictionary<string, dynamic>(){
+                {"B_LOGIN_PK", B_LOGIN_PK }, {"B_ID", B_ID}, { "G_ID", G_ID}, { "G_NAME", G_NAME}, {"TITLE", TITLE},
+                {"VIEW_COUNT", VIEW_COUNT }, {"START_AT", START_AT}, {"THUMB_IMG", THUMB_IMG}, {"UPDATE_AT", UPDATE_AT}
+            };
         }
     }
 }
