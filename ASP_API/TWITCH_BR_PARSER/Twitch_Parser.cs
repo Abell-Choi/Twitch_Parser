@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Linq;
 using System.Collections.Generic;
 using Newtonsoft.Json;
@@ -122,15 +122,13 @@ namespace Twitch_Parser {
         }
 
         ///<summary> 채널 추가용 </summary>
-        public int _insert_channel ( CHANNEL_INFO_JAR _jar ) {
-            // check exist user id
-            if ( _get_channel_info_exists( _jar.B_LOGIN_PK ) ) {
-                return _update_channel( _jar );
-            }
+        public string _insert_channel ( CHANNEL_INFO_JAR _jar ) {
 
             string _SQL = "INSERT INTO `CHANNEL_INFO_TB` " +
                 "(`B_LOGIN_PK`, `B_LANG`, `D_NAME`, `B_ID`, `B_TAGS`, `THUMB_URL`, `ADD_AT`) " +
-                "VALUES (@B_LOGIN_PK, @B_LANG, @D_NAME, @B_ID, @B_TAGS, @THUMB_URL, DEFAULT)";
+                "VALUES (@B_LOGIN_PK, @B_LANG, @D_NAME, @B_ID, @B_TAGS, @THUMB_URL, DEFAULT) ON DUPLICATE KEY UPDATE " +
+                "`B_LOGIN_PK` = @B_LOGIN_PK, `B_LANG` = @B_LANG , `D_NAME` = @D_NAME, `B_ID` = @B_ID, `B_TAGS` = @B_TAGS," +
+                "`THUMB_URL` = @THUMB_URL, `ADD_AT` = DEFAULT";
 
             _conn.Open( );
             var _cmd = new MySqlCommand( _SQL, _conn );
@@ -144,10 +142,10 @@ namespace Twitch_Parser {
             int _query_res = -1;
             try {
                 _query_res = _cmd.ExecuteNonQuery( );
-            } catch { }
+            } catch (Exception e) {return e.ToString(); }
 
             _conn.Close( );
-            return _query_res;
+            return "OK";
         }
 
         ///<summary> 채널 업데이트용 </summary>
@@ -246,13 +244,12 @@ namespace Twitch_Parser {
         }
 
         ///<summary> 방송 정보 추가 </summary>
-        public int insert_streaming_data ( STREAM_STATUS_JAR _jar ) {
-            if ( this._get_stream_info_exists( _jar.B_LOGIN_PK ) ) {
-                return this.update_streaming_data( _jar );
-            }
+        public string insert_streaming_data ( STREAM_STATUS_JAR _jar ) {
             string _SQL = "INSERT INTO `STREAM_STATUS_TB` " +
                 "(`B_LOGIN_PK`, `B_ID`, `G_ID`, `G_NAME`, `TITLE`, `VIEW_COUNT`, `START_AT`, `THUMB_IMG`) " +
-                "VALUES (@B_LOGIN_PK, @B_ID, @G_ID, @G_NAME, @TITLE, @VIEW_COUNT, @START_AT, @THUMB_IMG)";
+                "VALUES (@B_LOGIN_PK, @B_ID, @G_ID, @G_NAME, @TITLE, @VIEW_COUNT, @START_AT, @THUMB_IMG) " +
+                "ON DUPLICATE KEY UPDATE " +
+                "`B_LOGIN_PK`=@B_LOGIN_PK, `B_ID`=@B_ID, `G_ID`=@G_ID, `G_NAME`=@G_NAME, `TITLE`=@TITLE, `VIEW_COUNT`=@VIEW_COUNT, `START_AT`=@START_AT, `THUMB_IMG`=@THUMB_IMG";
 
             _conn.Open( );
             var _cmd = new MySqlCommand( _SQL, _conn );
@@ -268,37 +265,10 @@ namespace Twitch_Parser {
             int _query_res = -1;
             try {
                 _query_res = _cmd.ExecuteNonQuery( );
-            } catch ( Exception e ) { Console.WriteLine( e.ToString( ) ); }
+            } catch ( Exception e ) { return e.ToString();}
 
             _conn.Close( );
-            return _query_res;
-        }
-
-        ///<summary> 방송 정보 업데이트 </summary>
-        public int update_streaming_data ( STREAM_STATUS_JAR _jar ) {
-            string _SQL = "UPDATE `STREAM_STATUS_TB` " +
-                "SET `B_ID` = @B_ID, `G_ID` = @G_ID, `G_NAME` = @G_NAME, " +
-                "`TITLE` = @TITLE, `VIEW_COUNT` = @VIEW_COUNT, `START_AT` = @START_AT, `THUMB_IMG` = @THUMB_IMG " +
-                "WHERE B_LOGIN_PK = @B_LOGIN_PK";
-
-            _conn.Open( );
-            var _cmd = new MySqlCommand( _SQL, _conn );
-            _cmd.Parameters.AddWithValue( "@B_LOGIN_PK", _jar.B_LOGIN_PK );
-            _cmd.Parameters.AddWithValue( "@B_ID", _jar.B_ID );
-            _cmd.Parameters.AddWithValue( "@G_ID", _jar.G_ID );
-            _cmd.Parameters.AddWithValue( "@G_NAME", _jar.G_NAME );
-            _cmd.Parameters.AddWithValue( "@TITLE", _jar.TITLE );
-            _cmd.Parameters.AddWithValue( "@VIEW_COUNT", _jar.VIEW_COUNT );
-            _cmd.Parameters.AddWithValue( "@START_AT", _jar.START_AT );
-            _cmd.Parameters.AddWithValue( "@THUMB_IMG", _jar.THUMB_IMG );
-
-            int _query_res = -1;
-            try {
-                _query_res = _cmd.ExecuteNonQuery( );
-            } catch { }
-            _conn.Close( );
-
-            return _query_res;
+            return "OK";
         }
 
         ///<summary> 방송 정보 삭제 </summary>
